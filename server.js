@@ -1,4 +1,4 @@
-// server.js completo con panel admin en vivo y tokens únicos
+// server.js completo corregido con panel admin actualizado
 const express = require("express");
 const cors = require("cors");
 const app = express();
@@ -59,11 +59,11 @@ app.get("/admin", (req, res) => {
             document.getElementById("token").textContent = data.token || "Ninguno";
             let ul = document.getElementById("listaTokens");
             ul.innerHTML = "";
-            for (const clave in data.tokens) {
-              let li = document.createElement("li");
-              li.innerHTML = `<code>${clave}</code> → ${data.tokens[clave].usado ? "🛑 Bloqueado" : "🟢 Disponible"}`;
+            Object.entries(data.tokens).forEach(([clave, valor]) => {
+              const li = document.createElement("li");
+              li.innerHTML = `<code>${clave}</code> → ${valor.usado ? "🛑 Bloqueado" : "🟢 Disponible"}`;
               ul.appendChild(li);
-            }
+            });
           });
       }
       setInterval(actualizarEstado, 1000);
