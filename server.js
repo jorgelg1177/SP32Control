@@ -1,4 +1,4 @@
-// server.js completo corregido con panel admin actualizado
+// server.js completo corregido y funcional
 const express = require("express");
 const cors = require("cors");
 const app = express();
@@ -16,7 +16,6 @@ const ADMIN_PASSWORD = "microsmart";
 const MAX_SESSION_TIME = 2 * 60 * 1000;
 const INACTIVITY_LIMIT = 30 * 1000;
 
-// Panel con actualización automática cada segundo
 app.get("/admin", (req, res) => {
   if (req.query.pass !== ADMIN_PASSWORD) return res.status(403).send("Acceso denegado");
   res.send(`
@@ -73,7 +72,6 @@ app.get("/admin", (req, res) => {
   `);
 });
 
-// JSON con estado actual
 app.get("/estado", (req, res) => {
   if (req.query.pass !== ADMIN_PASSWORD) return res.status(403).send("Acceso denegado");
   res.json({
@@ -83,7 +81,6 @@ app.get("/estado", (req, res) => {
   });
 });
 
-// Liberar control manualmente
 app.get("/release", (req, res) => {
   if (req.query.pass !== ADMIN_PASSWORD) return res.status(403).send("Acceso denegado");
   activeToken = null;
@@ -92,7 +89,6 @@ app.get("/release", (req, res) => {
   res.redirect(`/admin?pass=${ADMIN_PASSWORD}`);
 });
 
-// Generar nuevo token
 app.get("/token", (req, res) => {
   if (req.query.pass !== ADMIN_PASSWORD) return res.status(403).send("Acceso denegado");
   const newToken = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -100,7 +96,6 @@ app.get("/token", (req, res) => {
   res.redirect(`/admin?pass=${ADMIN_PASSWORD}`);
 });
 
-// Autenticación de token
 app.get("/auth", (req, res) => {
   const { token, user } = req.query;
   if (!token || !user) return res.status(400).send("Faltan datos");
@@ -120,7 +115,6 @@ app.get("/auth", (req, res) => {
   return res.status(403).send("El control está siendo usado por otro usuario");
 });
 
-// Guardar comando de servo
 app.get("/comando", (req, res) => {
   const { servo, angle, token, user } = req.query;
   if (!servo || !angle || !token || !user) return res.status(400).send("Faltan parámetros");
@@ -133,7 +127,6 @@ app.get("/comando", (req, res) => {
   res.send("OK");
 });
 
-// Obtener último comando
 app.get("/next", (req, res) => {
   if (lastCommand) {
     res.json(lastCommand);
