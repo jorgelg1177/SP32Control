@@ -1,80 +1,64 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Micro Smart - Acceso al Brazo Robótico</title>
+  <title>Micro Smart - Acceso Brazo Robótico</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
       background: #0d1117;
       color: #00ffcc;
-      font-family: Arial, sans-serif;
+      font-family: 'Arial', sans-serif;
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 20px;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      text-align: center;
     }
-    .title {
-      font-size: 2em;
-      margin-bottom: 20px;
-    }
-    .token-section {
+    h1 {
       margin-bottom: 30px;
     }
-    input[type="text"] {
-      padding: 10px;
-      border-radius: 5px;
+    input {
+      padding: 12px;
+      margin: 10px;
+      width: 80%;
+      max-width: 300px;
       border: none;
-      margin-right: 10px;
+      border-radius: 8px;
+      font-size: 1em;
     }
     button {
-      padding: 10px 20px;
-      background: #00ffcc;
-      border: none;
-      border-radius: 5px;
+      padding: 12px 25px;
+      background-color: #00ffcc;
       color: black;
+      border: none;
+      border-radius: 8px;
       font-weight: bold;
       cursor: pointer;
+      margin-top: 15px;
     }
     button:hover {
-      background: #00ddaa;
-    }
-    .message {
-      margin-top: 15px;
-      color: #ff5757;
+      background-color: #00ddaa;
     }
   </style>
 </head>
 <body>
-  <div class="title">Micro Smart - Acceso al Brazo Robótico</div>
-  <div class="token-section">
-    <input type="text" id="user" placeholder="Tu nombre o apodo">
-    <input type="text" id="token" placeholder="Ingresa tu token">
-    <button onclick="enviarToken()">Ingresar</button>
-    <div id="mensaje" class="message"></div>
-  </div>
+  <h1>Micro Smart - Control de Brazo</h1>
+  <input type="text" id="user" placeholder="Tu nombre">
+  <input type="text" id="token" placeholder="Token de acceso">
+  <button onclick="entrar()">Entrar</button>
 
   <script>
-    function enviarToken() {
-      const token = document.getElementById("token").value.trim().toUpperCase();
+    function entrar() {
       const user = document.getElementById("user").value.trim();
-      const mensaje = document.getElementById("mensaje");
-
-      if (!token || !user) {
-        mensaje.textContent = "Por favor, completa ambos campos.";
+      const token = document.getElementById("token").value.trim();
+      if (!user || !token) {
+        alert("Por favor, ingresa tu nombre y el token.");
         return;
       }
-
-      fetch(`https://sp32control.onrender.com/auth?token=${token}&user=${user}`)
-        .then(res => {
-          if (res.ok) {
-            window.location.href = `https://microsmart.github.io/control?token=${token}&user=${user}`;
-          } else {
-            return res.text().then(texto => { mensaje.textContent = texto; });
-          }
-        })
-        .catch(() => mensaje.textContent = "Error de conexión con el servidor.");
+      window.location.href = `control.html?token=${token}&user=${user}`;
     }
   </script>
 </body>
