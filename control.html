@@ -1,0 +1,87 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Micro Smart - Panel de Control</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      background-color: #0d1117;
+      color: #00ffcc;
+      font-family: 'Arial', sans-serif;
+      text-align: center;
+      padding: 40px;
+    }
+    h1 {
+      margin-bottom: 20px;
+    }
+    .slider-container {
+      margin: 20px auto;
+      max-width: 400px;
+    }
+    input[type="range"] {
+      width: 100%;
+    }
+    .label {
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Control de Brazo Robótico</h1>
+
+  <div class="slider-container">
+    <label>Base</label><br>
+    <input type="range" min="0" max="180" value="90" id="servo1">
+    <div class="label" id="val1">90°</div>
+  </div>
+  <div class="slider-container">
+    <label>Brazo</label><br>
+    <input type="range" min="0" max="180" value="90" id="servo2">
+    <div class="label" id="val2">90°</div>
+  </div>
+  <div class="slider-container">
+    <label>Antebrazo</label><br>
+    <input type="range" min="0" max="180" value="90" id="servo3">
+    <div class="label" id="val3">90°</div>
+  </div>
+  <div class="slider-container">
+    <label>Garra</label><br>
+    <input type="range" min="0" max="180" value="90" id="servo4">
+    <div class="label" id="val4">Cerrada</div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("token");
+    const user = params.get("user");
+
+    if (!token || !user) {
+      window.location.href = "/";
+    }
+
+    let lastMove = Date.now();
+    let timer = 120;
+
+    const servos = [1, 2, 3, 4];
+
+    servos.forEach((s, i) => {
+      const slider = document.getElementById(`servo${s}`);
+      const label = document.getElementById(`val${s}`);
+      slider.addEventListener("input", () => {
+        lastMove = Date.now();
+        const val = slider.value;
+        label.textContent = s === 4 ? (val >= 135 ? "Abierta" : "Cerrada") : val + "°";
+        fetch(`https://sp32control.onrender.com/comando?servo=${s}&angle=${val}&token=${token}&user=${user}`);
+      });
+    });
+
+    setInterval(() => {
+      const diff = Math.floor((Date.now() - lastMove) / 1000);
+      if (diff >= 30 || timer <= 0) window.location.href = "/";
+      timer--;
+    }, 1000);
+  </script>
+</body>
+</html>

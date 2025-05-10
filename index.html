@@ -1,0 +1,81 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Micro Smart - Acceso al Brazo Robótico</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      background: #0d1117;
+      color: #00ffcc;
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+    .title {
+      font-size: 2em;
+      margin-bottom: 20px;
+    }
+    .token-section {
+      margin-bottom: 30px;
+    }
+    input[type="text"] {
+      padding: 10px;
+      border-radius: 5px;
+      border: none;
+      margin-right: 10px;
+    }
+    button {
+      padding: 10px 20px;
+      background: #00ffcc;
+      border: none;
+      border-radius: 5px;
+      color: black;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #00ddaa;
+    }
+    .message {
+      margin-top: 15px;
+      color: #ff5757;
+    }
+  </style>
+</head>
+<body>
+  <div class="title">Micro Smart - Acceso al Brazo Robótico</div>
+  <div class="token-section">
+    <input type="text" id="user" placeholder="Tu nombre o apodo">
+    <input type="text" id="token" placeholder="Ingresa tu token">
+    <button onclick="enviarToken()">Ingresar</button>
+    <div id="mensaje" class="message"></div>
+  </div>
+
+  <script>
+    function enviarToken() {
+      const token = document.getElementById("token").value.trim().toUpperCase();
+      const user = document.getElementById("user").value.trim();
+      const mensaje = document.getElementById("mensaje");
+
+      if (!token || !user) {
+        mensaje.textContent = "Por favor, completa ambos campos.";
+        return;
+      }
+
+      fetch(`https://sp32control.onrender.com/auth?token=${token}&user=${user}`)
+        .then(res => {
+          if (res.ok) {
+            window.location.href = `https://microsmart.github.io/control?token=${token}&user=${user}`;
+          } else {
+            return res.text().then(texto => { mensaje.textContent = texto; });
+          }
+        })
+        .catch(() => mensaje.textContent = "Error de conexión con el servidor.");
+    }
+  </script>
+</body>
+</html>
