@@ -1,77 +1,143 @@
-// index.html para el panel de usuario
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Micro Smart - Control de Brazo</title>
+const express = require("express");
+const cors = require("cors");
+const app = express();
+const port = process.env.PORT || 3000;
+
+app.use(cors());
+
+let validTokens = {};
+let activeUser = null;
+let activeToken = null;
+let lastAccessTime = null;
+let lastCommand = null;
+
+const ADMIN_PASSWORD = "microsmart";
+const MAX_SESSION_TIME = 2 * 60 * 1000; // 2 minutos
+const INACTIVITY_LIMIT = 30 * 1000;     // 30 segundos
+
+// Panel de administración
+app.get("/admin", (req, res) => {
+  if (req.query.pass !== ADMIN_PASSWORD) return res.status(403).send("Acceso denegado");
+  res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <title>Panel Admin</title>
   <style>
-    body {
-      background-color: #0d1117;
-      color: #00ffcc;
-      font-family: 'Arial', sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      margin: 0;
-    }
-    h1 {
-      margin-bottom: 1em;
-    }
-    input, button {
-      padding: 10px;
-      font-size: 16px;
-      border-radius: 5px;
-      border: none;
-      margin: 5px;
-    }
-    input {
-      width: 200px;
-    }
-    button {
-      background-color: #00ffcc;
-      color: #000;
-      cursor: pointer;
-      font-weight: bold;
-    }
-    #mensaje {
-      margin-top: 20px;
-      font-size: 18px;
-      font-weight: bold;
-      color: #ff5555;
-    }
+    body { font-family: Arial; background: #111; color: #00ffcc; padding: 20px; }
+    button { padding: 10px 20px; margin: 5px; background: #00ffcc; color: black; font-weight: bold; border: none; border-radius: 5px; cursor: pointer; }
+    .token-list { background: #222; padding: 10px; border-radius: 5px; margin-top: 10px; }
+    code { background: #000; padding: 3px 6px; border-radius: 3px; }
   </style>
-</head>
-<body>
-  <h1>Ingresa tu Token</h1>
-  <input type="text" id="token" placeholder="Ej: ABC123">
-  <button onclick="verificarToken()">Entrar</button>
-  <div id="mensaje"></div>
+  </head><body>
+    <h1>Panel de Administración Micro Smart</h1>
+    <p>🧑 Usuario activo: <strong id="usuario">Cargando...</strong></p>
+    <p>🔐 Token activo: <strong id="token">Cargando...</strong></p>
 
-  <script>
-    async function verificarToken() {
-      const token = document.getElementById("token").value.toUpperCase();
-      const nombre = prompt("Ingresa tu nombre o ID único:");
-      if (!token || !nombre) return alert("Debes ingresar el token y tu nombre.");
+    <form action="/release" method="get">
+      <input type="hidden" name="pass" value="${ADMIN_PASSWORD}">
+      <button type="submit">🔓 Liberar control</button>
+    </form>
 
-      const res = await fetch(`/auth?token=${token}&user=${nombre}`);
-      const text = await res.text();
+    <form action="/token" method="get">
+      <input type="hidden" name="pass" value="${ADMIN_PASSWORD}">
+      <button type="submit">➕ Generar nuevo token</button>
+    </form>
 
-      if (res.ok) {
-        localStorage.setItem("token", token);
-        localStorage.setItem("user", nombre);
-        location.href = "/control.html";
-      } else {
-        let mensaje = "";
-        if (text.includes("inválido")) mensaje = "❌ Token inválido";
-        else if (text.includes("usado")) mensaje = "🚫 Este token ya fue usado. No se puede usar más";
-        else if (text.includes("otro")) mensaje = "⚠️ El control está siendo usado por otro usuario";
-        else mensaje = text;
-        document.getElementById("mensaje").textContent = mensaje;
+    <div class="token-list">
+      <h3>🧾 Tokens generados:</h3>
+      <ul id="listaTokens"></ul>
+    </div>
+
+    <script>
+      function actualizarEstado() {
+        fetch("/estado?pass=${ADMIN_PASSWORD}")
+          .then(res => res.json())
+          .then(data => {
+            document.getElementById("usuario").textContent = data.usuario || "Ninguno";
+            document.getElementById("token").textContent = data.token || "Ninguno";
+            const ul = document.getElementById("listaTokens");
+            ul.innerHTML = "";
+            Object.entries(data.tokens).forEach(([clave, valor]) => {
+              const li = document.createElement("li");
+              li.innerHTML = \`<code>\${clave}</code> → \${valor.usado ? "🛑 Bloqueado" : "🟢 Disponible"}\`;
+              ul.appendChild(li);
+            });
+          });
       }
-    }
-  </script>
-</body>
-</html>
+      setInterval(actualizarEstado, 1000);
+      actualizarEstado();
+    </script>
+  </body></html>`);
+});
+
+// Ver estado desde panel
+app.get("/estado", (req, res) => {
+  if (req.query.pass !== ADMIN_PASSWORD) return res.status(403).send("Acceso denegado");
+  res.json({
+    usuario: activeUser,
+    token: activeToken,
+    tokens: validTokens
+  });
+});
+
+// Generar token
+app.get("/token", (req, res) => {
+  if (req.query.pass !== ADMIN_PASSWORD) return res.status(403).send("Acceso denegado");
+  const newToken = Math.random().toString(36).substring(2, 8).toUpperCase();
+  validTokens[newToken] = { usado: false };
+  res.redirect(`/admin?pass=${ADMIN_PASSWORD}`);
+});
+
+// Liberar control manual
+app.get("/release", (req, res) => {
+  if (req.query.pass !== ADMIN_PASSWORD) return res.status(403).send("Acceso denegado");
+  activeToken = null;
+  activeUser = null;
+  lastAccessTime = null;
+  res.redirect(`/admin?pass=${ADMIN_PASSWORD}`);
+});
+
+// Autenticación del usuario
+app.get("/auth", (req, res) => {
+  const { token, user } = req.query;
+  if (!token || !user) return res.status(400).send("Faltan datos");
+
+  const now = Date.now();
+  if (!validTokens[token]) return res.status(403).send("Token inválido");
+  if (validTokens[token].usado) return res.status(403).send("Este token ya fue usado");
+
+  if (!activeUser || now - lastAccessTime > MAX_SESSION_TIME || now - lastAccessTime > INACTIVITY_LIMIT) {
+    activeToken = token;
+    activeUser = user;
+    lastAccessTime = now;
+    validTokens[token].usado = true;
+    return res.send("Acceso concedido");
+  }
+
+  return res.status(403).send("El control está siendo usado por otro usuario");
+});
+
+// Recibir comando del usuario autorizado
+app.get("/comando", (req, res) => {
+  const { servo, angle, token, user } = req.query;
+  if (!servo || !angle || !token || !user) return res.status(400).send("Faltan parámetros");
+
+  const now = Date.now();
+  if (token !== activeToken || user !== activeUser) return res.status(403).send("No tienes permiso");
+
+  lastAccessTime = now;
+  lastCommand = { servo: parseInt(servo), angle: parseInt(angle) };
+  res.send("OK");
+});
+
+// Obtener siguiente comando
+app.get("/next", (req, res) => {
+  if (lastCommand) {
+    res.json(lastCommand);
+    lastCommand = null;
+  } else {
+    res.json({});
+  }
+});
+
+app.listen(port, () => {
+  console.log(`Servidor escuchando en http://localhost:${port}`);
+});
