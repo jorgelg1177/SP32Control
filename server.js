@@ -1,4 +1,4 @@
-// server.js - versión mejorada con logs, liberación automática y administración mejorada
+// server.js - versión mejorada solo descarga Excel y limpieza manual de logs
 
 const express = require("express");
 const cors = require("cors");
@@ -191,9 +191,10 @@ app.get("/next", (req, res) => {
 });
 
 // --- Logs de partidas (admin) ---
+// Solo descarga Excel y limpieza de logs
 app.get("/logs", (req, res) => {
   if (req.query.pass !== ADMIN_PASSWORD) return res.status(403).send("Acceso denegado");
-  // Permite ver y descargar como JSON
+  // Permite ver, descargar Excel y limpiar logs
   res.send(`
     <html>
     <head>
@@ -204,30 +205,49 @@ app.get("/logs", (req, res) => {
         th, td { padding: 8px; border: 1px solid #00ffcc44; text-align: left; }
         th { background: #222; }
         tr:nth-child(even) { background: #232a39; }
-        .boton-descargar { margin: 20px; padding: 10px 20px; background:#228be6; color:white; border:none; border-radius:8px; cursor:pointer;}
+        .boton-descargar, .boton-limpiar { margin: 20px 10px 20px 0; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer;}
+        .boton-descargar { background:#228be6; color:white; }
+        .boton-limpiar { background:#ff4444; color:white; }
       </style>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     </head>
     <body>
       <h2>Historial de partidas</h2>
-      <button class="boton-descargar" onclick="descargar()">Descargar como JSON</button>
+      <button class="boton-descargar" onclick="descargarExcel()">Descargar como Excel</button>
+      <button class="boton-limpiar" onclick="limpiarLogs()">Limpiar logs</button>
       <table>
         <tr><th>Usuario</th><th>Token</th><th>Fecha/Hora</th><th>Duración (s)</th></tr>
         ${logs.map(l => `<tr><td>${l.user}</td><td>${l.token}</td><td>${l.fecha}</td><td>${l.duracion}</td></tr>`).join("")}
       </table>
       <script>
-        function descargar() {
+        function descargarExcel() {
           const data = ${JSON.stringify(logs)};
-          const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], {type:"application/json"}));
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = "logs-microsmart.json";
-          a.click();
-          setTimeout(()=>URL.revokeObjectURL(url),1000);
+          if (!data.length) return alert("No hay logs para exportar.");
+          const ws = XLSX.utils.json_to_sheet(data);
+          const wb = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(wb, ws, "Logs");
+          XLSX.writeFile(wb, "logs-microsmart.xlsx");
+        }
+
+        function limpiarLogs() {
+          if (!confirm("¿Estás seguro de que quieres borrar todos los logs? Esta acción no se puede deshacer.")) return;
+          fetch("/clearlogs?pass=${ADMIN_PASSWORD}")
+            .then(r => {
+              if (r.ok) location.reload();
+              else r.text().then(txt=>alert("Error: " + txt));
+            });
         }
       </script>
     </body>
     </html>
   `);
+});
+
+// --- Limpiar logs (backend) ---
+app.get("/clearlogs", (req, res) => {
+  if (req.query.pass !== ADMIN_PASSWORD) return res.status(403).send("Acceso denegado");
+  logs.length = 0; // Limpia el array en memoria
+  res.send("Logs limpiados");
 });
 
 // --- Función para liberar el control y resetear estado ---
